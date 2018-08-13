@@ -64,7 +64,7 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
         [TestCase(Language.Python)]
         public void EmptyInsightsReturnsEmptyTargets(Language language)
         {
-            SetPortfolioConstruction(language);
+            SetPortfolioConstruction(language, _algorithm);
 
             var insights = Enumerable.Empty<Insight>();
             var actualTargets = _algorithm.PortfolioConstruction.CreateTargets(_algorithm, insights.ToArray());
@@ -81,7 +81,7 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
         [TestCase(Language.Python, InsightDirection.Flat)]
         public void InsightsReturnsTargetsConsistentWithDirection(Language language, InsightDirection direction)
         {
-            SetPortfolioConstruction(language);
+            SetPortfolioConstruction(language, _algorithm);
 
             // Equity will be divided by all securities
             var amount = _algorithm.Portfolio.TotalPortfolioValue / _algorithm.Securities.Count;
@@ -109,7 +109,7 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
         [TestCase(Language.Python, InsightDirection.Flat)]
         public void FlatDirectionNotAccountedToAllocation(Language language, InsightDirection direction)
         {
-            SetPortfolioConstruction(language);
+            SetPortfolioConstruction(language, _algorithm);
 
             // Modifying fee model for a constant one so numbers are simplified
             foreach (var security in _algorithm.Securities)
@@ -154,7 +154,7 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
         [TestCase(Language.Python, InsightDirection.Flat)]
         public void AutomaticallyRemoveInvested(Language language, InsightDirection direction)
         {
-            SetPortfolioConstruction(language);
+            SetPortfolioConstruction(language, _algorithm);
 
             var spyHolding = _algorithm.Portfolio[Symbols.SPY];
             spyHolding.SetHoldings(spyHolding.Price, 100);
@@ -186,6 +186,21 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
             }
         }
 
+        [Test]
+        [TestCase(Language.CSharp)]
+        [TestCase(Language.Python)]
+        public void DoesNotReturnTargetsIfSecurityPriceIsZero(Language language)
+        {
+            var algorithm = new QCAlgorithmFramework();
+            algorithm.AddEquity(Symbols.SPY.Value);
+
+            SetPortfolioConstruction(language, algorithm);
+
+            var insights = new[] { GetInsight(Symbols.SPY, InsightDirection.Up, algorithm.UtcTime) };
+            var actualTargets = algorithm.PortfolioConstruction.CreateTargets(algorithm, insights);
+
+            Assert.AreEqual(0, actualTargets.Count());
+        }
 
 
         private Security GetSecurity(Symbol symbol)
@@ -203,9 +218,9 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
             return insight;
         }
 
-        private void SetPortfolioConstruction(Language language)
+        private void SetPortfolioConstruction(Language language, QCAlgorithmFramework algorithm)
         {
-            _algorithm.SetPortfolioConstruction(new EqualWeightingPortfolioConstructionModel());
+            algorithm.SetPortfolioConstruction(new EqualWeightingPortfolioConstructionModel());
             if (language == Language.Python)
             {
                 using (Py.GIL())
@@ -213,12 +228,12 @@ namespace QuantConnect.Tests.Algorithm.Framework.Portfolio
                     var name = nameof(EqualWeightingPortfolioConstructionModel);
                     var instance = Py.Import(name).GetAttr(name).Invoke();
                     var model = new PortfolioConstructionModelPythonWrapper(instance);
-                    _algorithm.SetPortfolioConstruction(model);
+                    algorithm.SetPortfolioConstruction(model);
                 }
             }
 
             var changes = SecurityChanges.Added(_algorithm.Securities.Values.ToArray());
-            _algorithm.PortfolioConstruction.OnSecuritiesChanged(_algorithm, changes);
+            algorithm.PortfolioConstruction.OnSecuritiesChanged(_algorithm, changes);
         }
     }
 }

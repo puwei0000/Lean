@@ -62,12 +62,17 @@ class EqualWeightingPortfolioConstructionModel(PortfolioConstructionModel):
         count = sum(x.Direction != InsightDirection.Flat for x in activeInsights)
         percent = 0 if count == 0 else 1.0 / count
 
+        errorSymbols = {}
         for insight in activeInsights:
-            targets.append(PortfolioTarget.Percent(algorithm, insight.Symbol, insight.Direction * percent))
+            target = PortfolioTarget.Percent(algorithm, insight.Symbol, insight.Direction * percent)
+            if not target is None:
+                targets.append(target)
+            else:
+                errorSymbols[insight.Symbol] = insight.Symbol
 
         # add targets to remove invested securities
         for kvp in algorithm.Portfolio:
-            if kvp.Value.Invested and all([kvp.Key != x.Symbol for x in targets]):
+            if kvp.Value.Invested and all([kvp.Key != x.Symbol for x in targets]) and not kvp.Key in errorSymbols:
                 targets.append(PortfolioTarget(kvp.Key, 0))
 
         return targets

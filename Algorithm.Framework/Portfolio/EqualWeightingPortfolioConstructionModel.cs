@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Linq;
 using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Data.UniverseSelection;
-using QuantConnect.Securities;
 
 namespace QuantConnect.Algorithm.Framework.Portfolio
 {
@@ -74,6 +73,8 @@ namespace QuantConnect.Algorithm.Framework.Portfolio
             var count = activeInsights.Count(x => x.Direction != InsightDirection.Flat);
             var percent = count == 0 ? 0 : 1m / count;
 
+            var errorSymbols = new HashSet<Symbol>();
+
             foreach (var insight in activeInsights)
             {
                 var target = PortfolioTarget.Percent(algorithm, insight.Symbol, (int) insight.Direction * percent);
@@ -81,12 +82,16 @@ namespace QuantConnect.Algorithm.Framework.Portfolio
                 {
                     targets.Add(target);
                 }
+                else
+                {
+                    errorSymbols.Add(insight.Symbol);
+                }
             }
 
             // add targets to remove invested securities
             targets.AddRange(from kvp in algorithm.Portfolio
                              where kvp.Value.Invested
-                             where targets.All(x => kvp.Key != x.Symbol)
+                             where targets.All(x => kvp.Key != x.Symbol) && !errorSymbols.Contains(kvp.Key)
                              select new PortfolioTarget(kvp.Key, 0));
 
             return targets;
