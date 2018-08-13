@@ -76,7 +76,11 @@ namespace QuantConnect.Algorithm.Framework.Portfolio
 
             foreach (var insight in activeInsights)
             {
-                targets.Add(PortfolioTarget.Percent(algorithm, insight.Symbol, (int)insight.Direction * percent));
+                var target = PortfolioTarget.Percent(algorithm, insight.Symbol, (int) insight.Direction * percent);
+                if (target != null)
+                {
+                    targets.Add(target);
+                }
             }
 
             // add targets to remove invested securities
@@ -98,7 +102,7 @@ namespace QuantConnect.Algorithm.Framework.Portfolio
             // save securities removed so we can zero out our holdings
             _removedSymbols = changes.RemovedSecurities.Select(x => x.Symbol).ToList();
 
-            // remove the insights of the removed symbol from the collection 
+            // remove the insights of the removed symbol from the collection
             foreach (var removedSymbol in _removedSymbols)
             {
                 List<Insight> insights;
